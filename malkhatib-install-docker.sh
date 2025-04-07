@@ -1,50 +1,46 @@
 #!/bin/bash
 
+# This script installs Docker Engine, Buildx plugin, and Docker Compose plugin
+# according to the latest Docker documentation for Debian-based systems.
+
 # Check if the script is run as root
 if [[ $EUID -ne 0 ]]; then
-    echo "This script must be run as root. Use sudo!" 
+    echo "This script must be run as root. Use sudo!"
     exit 1
 fi
 
+# Update the apt package index
+echo "Updating package index..."
+apt-get update
+
 # Install prerequisites
 echo "Installing prerequisites..."
-apt-get update
-apt-get install -y apt-transport-https ca-certificates curl software-properties-common
+apt-get install -y ca-certificates curl
+
+# Create the keyrings directory if it doesn't exist
+echo "Creating /etc/apt/keyrings directory..."
+install -m 0755 -d /etc/apt/keyrings
 
 # Add Docker's official GPG key
-echo "Adding Docker GPG key..."
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+echo "Adding Docker's official GPG key..."
+curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
+chmod a+r /etc/apt/keyrings/docker.asc
 
-# Add Docker's official repository
-echo "Adding Docker repository..."
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+# Add Docker's apt repository
+echo "Adding Docker's apt repository..."
+. /etc/os-release
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian $VERSION_CODENAME stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
 
-# Install Docker CE
-echo "Installing Docker CE..."
+# Update the apt package index again
+echo "Updating package index after adding Docker repository..."
 apt-get update
-apt-get install -y docker-ce docker-ce-cli containerd.io
 
-# Enable and start Docker service
-echo "Enabling and starting Docker service..."
-systemctl enable docker
-systemctl start docker
+# Install Docker Engine, CLI, containerd, Buildx plugin, and Docker Compose plugin
+echo "Installing Docker packages..."
+apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
-# Install Docker Compose Plugin
-echo "Installing Docker Compose plugin..."
-DOCKER_CONFIG=${DOCKER_CONFIG:-/usr/lib/docker/cli-plugins}
-mkdir -p $DOCKER_CONFIG
-curl -SL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-$(uname -m) -o $DOCKER_CONFIG/docker-compose
-chmod +x $DOCKER_CONFIG/docker-compose
+# Verify the installation by running the hello-world container
+echo "Verifying Docker installation by running hello-world container..."
+docker run hello-world
 
-# Add current user to the Docker group (optional)
-echo "Adding current user to Docker group..."
-usermod -aG docker $SUDO_USER
-
-# Verify installations
-echo "Verifying Docker installation..."
-docker --version
-docker compose version
-
-# Completion message
-echo "Docker CE and Docker Compose plugin installed successfully."
-echo "Please log out and back in for the user group changes to take effect."
+echo "Docker Engine, Buildx plugin, and Docker Compose plugin have been installed successfully."
